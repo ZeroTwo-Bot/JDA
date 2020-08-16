@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 /*
 
@@ -96,6 +97,35 @@ public class BotRateLimiter extends RateLimiter
     public void init()
     {
         cleanupWorker = getScheduler().scheduleAtFixedRate(this::cleanup, 30, 30, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public List<IBucket> getBuckets() {
+        return buckets.values().stream().map(bucket -> (IBucket) bucket)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public int getQueueSize() {
+        return buckets.values().stream()
+                .map(Bucket::getRequests)
+                .map(Queue::size)
+                .reduce(Integer::sum)
+                .orElse(0);
+    }
+
+    @Override
+    public int getQueueSize(Route.CompiledRoute route) {
+        final String hash = hashes.get(route.getBaseRoute());
+        if(hash == null)
+            return 0;
+        final Bucket bucket = buckets.get(hash);
+        if(bucket == null)
+            return 0;
+        return (int) bucket.getRequests()
+                .stream()
+                .filter(request -> request.getRoute().equals(route))
+                .count();
     }
 
     private ScheduledExecutorService getScheduler()

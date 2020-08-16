@@ -17,10 +17,13 @@
 package net.dv8tion.jda.internal.requests;
 
 import net.dv8tion.jda.api.requests.Request;
+import net.dv8tion.jda.internal.requests.ratelimit.IBucket;
 import net.dv8tion.jda.internal.utils.JDALogger;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 @SuppressWarnings("rawtypes")
 public abstract class RateLimiter
@@ -58,6 +61,18 @@ public abstract class RateLimiter
 
 
     // --- Default Implementations --
+
+    public List<IBucket> getBuckets() {
+        return new ArrayList<>();
+    }
+
+    public int getQueueSize() {
+        return 0;
+    }
+
+    public int getQueueSize(Route.CompiledRoute route) {
+        return 0;
+    }
 
     public boolean isRateLimited(Route.CompiledRoute route)
     {
