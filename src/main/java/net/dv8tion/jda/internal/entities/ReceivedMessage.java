@@ -22,6 +22,7 @@ import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
+import net.dv8tion.jda.api.exceptions.MissingAccessException;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
@@ -30,6 +31,7 @@ import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.JDAImpl;
+import net.dv8tion.jda.internal.requests.CompletedRestAction;
 import net.dv8tion.jda.internal.requests.Route;
 import net.dv8tion.jda.internal.requests.restaction.AuditableRestActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
@@ -293,8 +295,6 @@ public class ReceivedMessage extends AbstractMessage
         if (!mentionedUsers.contains(userId))
             return null;
         User user = getJDA().getUserById(userId);
-        if (user == null)
-            user = api.getFakeUserMap().get(userId);
         if (user == null && userMentions != null)
             user = userMentions.stream().filter(it -> it.getIdLong() == userId).findFirst().orElse(null);
         return user;
@@ -807,6 +807,8 @@ public class ReceivedMessage extends AbstractMessage
         {
             if (isFromType(ChannelType.PRIVATE))
                 throw new IllegalStateException("Cannot delete another User's messages in a PrivateChannel.");
+            else if (!getGuild().getSelfMember().hasAccess(getTextChannel()))
+                throw new MissingAccessException(getTextChannel(), Permission.VIEW_CHANNEL);
             else if (!getGuild().getSelfMember()
                     .hasPermission((TextChannel) getChannel(), Permission.MESSAGE_MANAGE))
                 throw new InsufficientPermissionException(getTextChannel(), Permission.MESSAGE_MANAGE);
@@ -827,6 +829,20 @@ public class ReceivedMessage extends AbstractMessage
         else
             newFlags &= ~suppressionValue;
         return new AuditableRestActionImpl<>(jda, route, DataObject.empty().put("flags", newFlags));
+    }
+
+    @Nonnull
+    @Override
+    public RestAction<Message> crosspost()
+    {
+        if (getFlags().contains(MessageFlag.CROSSPOSTED))
+            return new CompletedRestAction<>(getJDA(), this);
+        TextChannel textChannel = getTextChannel();
+        if (!getGuild().getSelfMember().hasAccess(textChannel))
+            throw new MissingAccessException(textChannel, Permission.VIEW_CHANNEL);
+        if (!getAuthor().equals(getJDA().getSelfUser()) && !getGuild().getSelfMember().hasPermission(textChannel, Permission.MESSAGE_MANAGE))
+            throw new InsufficientPermissionException(textChannel, Permission.MESSAGE_MANAGE);
+        return textChannel.crosspostMessageById(getId());
     }
 
     @Override

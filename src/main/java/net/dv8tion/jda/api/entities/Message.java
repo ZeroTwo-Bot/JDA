@@ -724,9 +724,6 @@ public interface Message extends ISnowflake, Formattable
      * <br><b>This only includes Custom Emotes, not unicode Emojis.</b> JDA classifies Emotes as the Custom Emojis uploaded
      * to a Guild and retrievable with {@link net.dv8tion.jda.api.entities.Guild#getEmotes()}. These are not the same
      * as the unicode emojis that Discord also supports. Elements are sorted in order of appearance.
-     * <p>
-     * <b>This may or may not contain fake Emotes which means they can be displayed but not used by the logged in account.</b>
-     * To check whether an Emote is fake you can test if {@link Emote#isFake()} returns true.
      *
      * <p><b><u>Unicode emojis are not included as {@link net.dv8tion.jda.api.entities.Emote Emote}!</u></b>
      *
@@ -1145,7 +1142,6 @@ public interface Message extends ISnowflake, Formattable
      * @throws java.lang.IllegalArgumentException
      *         <ul>
      *             <li>If the provided {@link net.dv8tion.jda.api.entities.Emote Emote} is null.</li>
-     *             <li>If the provided {@link net.dv8tion.jda.api.entities.Emote Emote} is fake {@link net.dv8tion.jda.api.entities.Emote#isFake() Emote.isFake()}.</li>
      *             <li>If the provided {@link net.dv8tion.jda.api.entities.Emote Emote} cannot be used in the current channel.
      *                 See {@link Emote#canInteract(User, MessageChannel)} or {@link Emote#canInteract(Member)} for more information.</li>
      *         </ul>
@@ -1449,7 +1445,6 @@ public interface Message extends ISnowflake, Formattable
      * @throws java.lang.IllegalArgumentException
      *         <ul>
      *             <li>If the provided {@link net.dv8tion.jda.api.entities.Emote Emote} is null.</li>
-     *             <li>If the provided {@link net.dv8tion.jda.api.entities.Emote Emote} is fake {@link net.dv8tion.jda.api.entities.Emote#isFake() Emote.isFake()}.</li>
      *             <li>If the provided {@link net.dv8tion.jda.api.entities.Emote Emote} cannot be used in the current channel.
      *                 See {@link Emote#canInteract(User, MessageChannel)} or {@link Emote#canInteract(Member)} for more information.</li>
      *             <li>If the provided user is null</li>
@@ -1778,6 +1773,45 @@ public interface Message extends ISnowflake, Formattable
     @Nonnull
     @CheckReturnValue
     AuditableRestAction<Void> suppressEmbeds(boolean suppressed);
+
+    /**
+     * Attempts to crosspost this message.
+     *
+     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <ul>
+     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#ALREADY_CROSSPOSTED ALREADY_CROSSPOSTED}
+     *     <br>The target message has already been crossposted.</li>
+     *
+     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the
+     *         {@link net.dv8tion.jda.api.entities.Guild Guild}
+     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#MESSAGE_READ Permission.MESSAGE_READ}
+     *         was revoked in the {@link net.dv8tion.jda.api.entities.TextChannel TextChannel}</li>
+     *
+     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <br>The request was attempted after the account lost
+     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_MANAGE Permission.MESSAGE_MANAGE} in the TextChannel.</li>
+     *
+     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
+     *         the message it referred to has already been deleted.</li>
+     *
+     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <br>The request was attempted after the channel was deleted.</li>
+     * </ul>
+     *
+     * @throws IllegalStateException
+     *         If the channel is not a text or news channel. See {@link TextChannel#isNews()}.
+     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     *         If the currently logged in account does not have
+     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} in this channel
+     *         or if this message is from another user and we don't have {@link Permission#MESSAGE_MANAGE Permission.MESSAGE_MANAGE}.
+     *
+     * @return {@link net.dv8tion.jda.api.requests.RestAction} - Type: {@link Message}
+     */
+    @Nonnull
+    @CheckReturnValue
+    RestAction<Message> crosspost();
 
     /**
      * Whether embeds are suppressed for this message.
@@ -2347,5 +2381,17 @@ public interface Message extends ISnowflake, Formattable
             String extension = getFileExtension();
             return extension != null && VIDEO_EXTENSIONS.contains(extension.toLowerCase());
         }
+
+        /**
+         * Whether or not this attachment is marked as spoiler,
+         * based on {@link #getFileName()}.
+         *
+         * @return True if this attachment is marked as spoiler
+         */
+        public boolean isSpoiler()
+        {
+            return getFileName().startsWith("SPOILER_");
+        }
+
     }
 }

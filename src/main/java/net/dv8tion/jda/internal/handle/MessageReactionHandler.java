@@ -95,8 +95,6 @@ public class MessageReactionHandler extends SocketHandler
         if (user == null && member != null)
             user = member.getUser(); // this happens when we have guild subscriptions disabled
         if (user == null)
-            user = getJDA().getFakeUserMap().get(userId);
-        if (user == null)
         {
             if (add && guild != null)
             {
@@ -109,13 +107,7 @@ public class MessageReactionHandler extends SocketHandler
 
         MessageChannel channel = getJDA().getTextChannelById(channelId);
         if (channel == null)
-        {
             channel = getJDA().getPrivateChannelById(channelId);
-        }
-        if (channel == null)
-        {
-            channel = getJDA().getFakePrivateChannelMap().get(channelId);
-        }
         if (channel == null)
         {
             getJDA().getEventCache().cache(EventCache.Type.CHANNEL, channelId, responseNumber, allContent, this::handle);
@@ -170,7 +162,7 @@ public class MessageReactionHandler extends SocketHandler
                 jda.handleEvent(
                     new PrivateMessageReactionAddEvent(
                         jda, responseNumber,
-                        user, reaction, userId));
+                        reaction, userId));
                 break;
             case GROUP:
                 WebSocketClient.LOG.debug("Received a reaction add for a group which should not be possible");
@@ -198,7 +190,7 @@ public class MessageReactionHandler extends SocketHandler
                 jda.handleEvent(
                     new PrivateMessageReactionRemoveEvent(
                         jda, responseNumber,
-                        user, reaction, userId));
+                        reaction, userId));
                 break;
             case GROUP:
                 WebSocketClient.LOG.debug("Received a reaction remove for a group which should not be possible");

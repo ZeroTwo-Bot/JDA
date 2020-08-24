@@ -20,6 +20,7 @@ import com.neovisionaries.ws.client.WebSocketFactory;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.set.TLongSet;
 import net.dv8tion.jda.api.AccountType;
+import net.dv8tion.jda.api.GatewayEncoding;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audio.factory.DefaultSendFactory;
@@ -89,9 +90,6 @@ public class JDAImpl implements JDA
     protected final SnowflakeCacheViewImpl<TextChannel> textChannelCache = new SnowflakeCacheViewImpl<>(TextChannel.class, GuildChannel::getName);
     protected final SnowflakeCacheViewImpl<VoiceChannel> voiceChannelCache = new SnowflakeCacheViewImpl<>(VoiceChannel.class, GuildChannel::getName);
     protected final SnowflakeCacheViewImpl<PrivateChannel> privateChannelCache = new SnowflakeCacheViewImpl<>(PrivateChannel.class, MessageChannel::getName);
-
-    protected final TLongObjectMap<User> fakeUsers = MiscUtil.newLongMap();
-    protected final TLongObjectMap<PrivateChannel> fakePrivateChannels = MiscUtil.newLongMap();
 
     protected final AbstractCacheView<AudioManager> audioManagers = new CacheView.SimpleCacheView<>(AudioManager.class, m -> m.getGuild().getName());
 
@@ -243,15 +241,15 @@ public class JDAImpl implements JDA
 
     public int login() throws LoginException
     {
-        return login(null, null, Compression.ZLIB, true, GatewayIntent.ALL_INTENTS);
+        return login(null, null, Compression.ZLIB, true, GatewayIntent.ALL_INTENTS, GatewayEncoding.JSON);
     }
 
-    public int login(ShardInfo shardInfo, Compression compression, boolean validateToken, int intents) throws LoginException
+    public int login(ShardInfo shardInfo, Compression compression, boolean validateToken, int intents, GatewayEncoding encoding) throws LoginException
     {
-        return login(null, shardInfo, compression, validateToken, intents);
+        return login(null, shardInfo, compression, validateToken, intents, encoding);
     }
 
-    public int login(String gatewayUrl, ShardInfo shardInfo, Compression compression, boolean validateToken, int intents) throws LoginException
+    public int login(String gatewayUrl, ShardInfo shardInfo, Compression compression, boolean validateToken, int intents, GatewayEncoding encoding) throws LoginException
     {
         this.shardInfo = shardInfo;
         threadConfig.init(this::getIdentifierString);
@@ -285,7 +283,7 @@ public class JDAImpl implements JDA
             LOG.info("Login Successful!");
         }
 
-        client = new WebSocketClient(this, compression, intents);
+        client = new WebSocketClient(this, compression, intents, encoding);
         // remove our MDC metadata when we exit our code
         if (previousContext != null)
             previousContext.forEach(MDC::put);
@@ -558,7 +556,7 @@ public class JDAImpl implements JDA
                 () -> {
                     Route.CompiledRoute route = Route.Users.GET_USER.compile(Long.toUnsignedString(id));
                     return new RestActionImpl<>(this, route,
-                            (response, request) -> getEntityBuilder().createFakeUser(response.getObject()));
+                            (response, request) -> getEntityBuilder().createUser(response.getObject()));
                 });
     }
 
@@ -983,16 +981,6 @@ public class JDAImpl implements JDA
         return audioManagers;
     }
 
-    public TLongObjectMap<User> getFakeUserMap()
-    {
-        return fakeUsers;
-    }
-
-    public TLongObjectMap<PrivateChannel> getFakePrivateChannelMap()
-    {
-        return fakePrivateChannels;
-    }
-
     public void setSelfUser(SelfUser selfUser)
     {
         try (UnlockHook hook = userCache.writeLock())
@@ -1022,12 +1010,14 @@ public class JDAImpl implements JDA
 
     public String getGatewayUrl()
     {
+        if (gatewayUrl == null)
+            return gatewayUrl = getGateway();
         return gatewayUrl;
     }
 
     public void resetGatewayUrl()
     {
-        this.gatewayUrl = getGateway();
+        this.gatewayUrl = null;
     }
 
     public ScheduledThreadPoolExecutor getAudioLifeCyclePool()

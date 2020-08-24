@@ -53,6 +53,7 @@ public class TextChannelImpl extends AbstractChannelImpl<TextChannel, TextChanne
     private String topic;
     private long lastMessageId;
     private boolean nsfw;
+    private boolean news;
     private int slowmode;
 
     public TextChannelImpl(long id, GuildImpl guild)
@@ -148,8 +149,7 @@ public class TextChannelImpl extends AbstractChannelImpl<TextChannel, TextChanne
     {
         Checks.isSnowflake(id, "Webhook ID");
 
-        if (!getGuild().getSelfMember().hasPermission(this, Permission.MANAGE_WEBHOOKS))
-            throw new InsufficientPermissionException(this, Permission.MANAGE_WEBHOOKS);
+        checkPermission(Permission.MANAGE_WEBHOOKS);
 
         Route.CompiledRoute route = Route.Webhooks.DELETE_WEBHOOK.compile(id);
         return new AuditableRestActionImpl<>(getJDA(), route);
@@ -270,6 +270,12 @@ public class TextChannelImpl extends AbstractChannelImpl<TextChannel, TextChanne
     public boolean isNSFW()
     {
         return nsfw;
+    }
+
+    @Override
+    public boolean isNews()
+    {
+        return news && getGuild().getFeatures().contains("NEWS");
     }
 
     @Override
@@ -623,6 +629,12 @@ public class TextChannelImpl extends AbstractChannelImpl<TextChannel, TextChanne
     public TextChannelImpl setSlowmode(int slowmode)
     {
         this.slowmode = slowmode;
+        return this;
+    }
+
+    public TextChannelImpl setNews(boolean news)
+    {
+        this.news = news;
         return this;
     }
 

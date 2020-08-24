@@ -21,6 +21,7 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
+import net.dv8tion.jda.api.exceptions.MissingAccessException;
 import net.dv8tion.jda.api.managers.ChannelManager;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
@@ -37,7 +38,6 @@ import net.dv8tion.jda.internal.requests.restaction.AuditableRestActionImpl;
 import net.dv8tion.jda.internal.requests.restaction.InviteActionImpl;
 import net.dv8tion.jda.internal.requests.restaction.PermissionOverrideActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
-import net.dv8tion.jda.internal.utils.cache.SnowflakeReference;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -50,7 +50,6 @@ import java.util.stream.Collectors;
 public abstract class AbstractChannelImpl<T extends GuildChannel, M extends AbstractChannelImpl<T, M>> implements GuildChannel
 {
     protected final long id;
-    protected final SnowflakeReference<Guild> guild;
     protected final JDAImpl api;
 
     protected final TLongObjectMap<PermissionOverride> overrides = MiscUtil.newLongMap();
@@ -58,6 +57,7 @@ public abstract class AbstractChannelImpl<T extends GuildChannel, M extends Abst
     protected final ReentrantLock mngLock = new ReentrantLock();
     protected volatile ChannelManager manager;
 
+    protected GuildImpl guild;
     protected long parentId;
     protected String name;
     protected int rawPosition;
@@ -66,7 +66,7 @@ public abstract class AbstractChannelImpl<T extends GuildChannel, M extends Abst
     {
         this.id = id;
         this.api = guild.getJDA();
-        this.guild = new SnowflakeReference<>(guild, api::getGuildById);
+        this.guild = guild;
     }
 
     @Override
@@ -102,7 +102,10 @@ public abstract class AbstractChannelImpl<T extends GuildChannel, M extends Abst
     @Override
     public GuildImpl getGuild()
     {
-        return (GuildImpl) guild.resolve();
+        GuildImpl realGuild = (GuildImpl) api.getGuildById(guild.getIdLong());
+        if (realGuild != null)
+            guild = realGuild;
+        return guild;
     }
 
     @Override
@@ -209,8 +212,7 @@ public abstract class AbstractChannelImpl<T extends GuildChannel, M extends Abst
     @Override
     public InviteAction createInvite()
     {
-        if (!this.getGuild().getSelfMember().hasPermission(this, Permission.CREATE_INSTANT_INVITE))
-            throw new InsufficientPermissionException(this, Permission.CREATE_INSTANT_INVITE);
+        checkPermission(Permission.CREATE_INSTANT_INVITE);
 
         return new InviteActionImpl(this.getJDA(), this.getId());
     }
@@ -219,8 +221,7 @@ public abstract class AbstractChannelImpl<T extends GuildChannel, M extends Abst
     @Override
     public RestAction<List<Invite>> retrieveInvites()
     {
-        if (!this.getGuild().getSelfMember().hasPermission(this, Permission.MANAGE_CHANNEL))
-            throw new InsufficientPermissionException(this, Permission.MANAGE_CHANNEL);
+        checkPermission(Permission.MANAGE_CHANNEL);
 
         final Route.CompiledRoute route = Route.Invites.GET_CHANNEL_INVITES.compile(getId());
 
@@ -285,9 +286,20 @@ public abstract class AbstractChannelImpl<T extends GuildChannel, M extends Abst
         return (M) this;
     }
 
+    protected void checkAccess()
+    {
+        Member selfMember = getGuild().getSelfMember();
+        if (!selfMember.hasPermission(this, Permission.VIEW_CHANNEL))
+            throw new MissingAccessException(this, Permission.VIEW_CHANNEL);
+        // Else we can only be missing VOICE_CONNECT!
+        if (!selfMember.hasAccess(this))
+            throw new MissingAccessException(this, Permission.VOICE_CONNECT);
+    }
+
     protected void checkPermission(Permission permission) {checkPermission(permission, null);}
     protected void checkPermission(Permission permission, String message)
     {
+        checkAccess();
         if (!getGuild().getSelfMember().hasPermission(this, permission))
         {
             if (message != null)

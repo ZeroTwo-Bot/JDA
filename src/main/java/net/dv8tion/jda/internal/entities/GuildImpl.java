@@ -111,6 +111,7 @@ public class GuildImpl implements Guild
     private ExplicitContentLevel explicitContentLevel = ExplicitContentLevel.UNKNOWN;
     private Timeout afkTimeout;
     private BoostTier boostTier = BoostTier.NONE;
+    private Locale preferredLocale = Locale.ENGLISH;
     private boolean available;
     private boolean canSendVerification = false;
     private int memberCount;
@@ -247,6 +248,13 @@ public class GuildImpl implements Guild
     public String getDescription()
     {
         return description;
+    }
+
+    @Nonnull
+    @Override
+    public Locale getLocale()
+    {
+        return preferredLocale;
     }
 
     @Nullable
@@ -580,7 +588,7 @@ public class GuildImpl implements Guild
             {
                 final DataObject object = bannedArr.getObject(i);
                 DataObject user = object.getObject("user");
-                bans.add(new Ban(builder.createFakeUser(user), object.getString("reason", null)));
+                bans.add(new Ban(builder.createUser(user), object.getString("reason", null)));
             }
             return Collections.unmodifiableList(bans);
         });
@@ -602,7 +610,7 @@ public class GuildImpl implements Guild
             EntityBuilder builder = api.getEntityBuilder();
             DataObject bannedObj = response.getObject();
             DataObject user = bannedObj.getObject("user");
-            return new Ban(builder.createFakeUser(user), bannedObj.getString("reason", null));
+            return new Ban(builder.createUser(user), bannedObj.getString("reason", null));
         });
     }
 
@@ -1467,7 +1475,7 @@ public class GuildImpl implements Guild
     public GuildImpl setOwner(Member owner)
     {
         // Only cache owner if user cache is enabled
-        if (owner != null && !owner.isFake())
+        if (owner != null && getMemberById(owner.getIdLong()) != null)
             this.owner = owner;
         return this;
     }
@@ -1578,6 +1586,12 @@ public class GuildImpl implements Guild
     public GuildImpl setAfkTimeout(Timeout afkTimeout)
     {
         this.afkTimeout = afkTimeout;
+        return this;
+    }
+
+    public GuildImpl setLocale(String locale)
+    {
+        this.preferredLocale = Locale.forLanguageTag(locale);
         return this;
     }
 

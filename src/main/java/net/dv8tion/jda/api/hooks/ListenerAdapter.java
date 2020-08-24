@@ -228,6 +228,7 @@ public abstract class ListenerAdapter implements EventListener
     public void onTextChannelUpdateNSFW(@Nonnull TextChannelUpdateNSFWEvent event) {}
     public void onTextChannelUpdateParent(@Nonnull TextChannelUpdateParentEvent event) {}
     public void onTextChannelUpdateSlowmode(@Nonnull TextChannelUpdateSlowmodeEvent event) {}
+    public void onTextChannelUpdateNews(@Nonnull TextChannelUpdateNewsEvent event) {}
     public void onTextChannelCreate(@Nonnull TextChannelCreateEvent event) {}
 
     //VoiceChannel Events
@@ -274,6 +275,7 @@ public abstract class ListenerAdapter implements EventListener
     public void onGuildUpdateRegion(@Nonnull GuildUpdateRegionEvent event) {}
     public void onGuildUpdateSplash(@Nonnull GuildUpdateSplashEvent event) {}
     public void onGuildUpdateVerificationLevel(@Nonnull GuildUpdateVerificationLevelEvent event) {}
+    public void onGuildUpdateLocale(@Nonnull GuildUpdateLocaleEvent event) {}
     public void onGuildUpdateFeatures(@Nonnull GuildUpdateFeaturesEvent event) {}
     public void onGuildUpdateVanityCode(@Nonnull GuildUpdateVanityCodeEvent event) {}
     public void onGuildUpdateBanner(@Nonnull GuildUpdateBannerEvent event) {}
@@ -512,6 +514,8 @@ public abstract class ListenerAdapter implements EventListener
             onTextChannelDelete((TextChannelDeleteEvent) event);
         else if (event instanceof TextChannelUpdatePermissionsEvent)
             onTextChannelUpdatePermissions((TextChannelUpdatePermissionsEvent) event);
+        else if (event instanceof TextChannelUpdateNewsEvent)
+            onTextChannelUpdateNews((TextChannelUpdateNewsEvent) event);
 
         //VoiceChannel Events
         else if (event instanceof VoiceChannelCreateEvent)
@@ -596,6 +600,8 @@ public abstract class ListenerAdapter implements EventListener
             onGuildUpdateSplash((GuildUpdateSplashEvent) event);
         else if (event instanceof GuildUpdateVerificationLevelEvent)
             onGuildUpdateVerificationLevel((GuildUpdateVerificationLevelEvent) event);
+        else if (event instanceof GuildUpdateLocaleEvent)
+            onGuildUpdateLocale((GuildUpdateLocaleEvent) event);
         else if (event instanceof GuildUpdateFeaturesEvent)
             onGuildUpdateFeatures((GuildUpdateFeaturesEvent) event);
         else if (event instanceof GuildUpdateVanityCodeEvent)
