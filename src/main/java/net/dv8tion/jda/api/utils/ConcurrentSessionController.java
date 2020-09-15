@@ -49,6 +49,10 @@ public class ConcurrentSessionController extends SessionControllerAdapter implem
 
     private Worker[] workers = new Worker[1];
 
+    public ConcurrentSessionController() {
+        this(1);
+    }
+
     public ConcurrentSessionController(final int level) {
         setConcurrency(level);
     }
