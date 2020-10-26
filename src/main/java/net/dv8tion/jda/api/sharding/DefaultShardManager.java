@@ -305,16 +305,13 @@ public class DefaultShardManager implements ShardManager
         Checks.notNegative(shardId, "shardId");
         Checks.check(shardId < getShardsTotal(), "shardId must be lower than shardsTotal");
 
-        try (UnlockHook hook = this.shards.writeLock())
+        JDA jda = this.shards.remove(shardId);
+        if (jda != null)
         {
-            final JDA jda = this.shards.getMap().remove(shardId);
-            if (jda != null)
-            {
-                if (shardingConfig.isUseShutdownNow())
-                    jda.shutdownNow();
-                else
-                    jda.shutdown();
-            }
+            if (shardingConfig.isUseShutdownNow())
+                jda.shutdownNow();
+            else
+                jda.shutdown();
         }
 
         enqueueShard(shardId);
@@ -370,16 +367,13 @@ public class DefaultShardManager implements ShardManager
     @Override
     public void shutdown(final int shardId)
     {
-        try (UnlockHook hook = this.shards.writeLock())
+        final JDA jda = this.shards.remove(shardId);
+        if (jda != null)
         {
-            final JDA jda = this.shards.getMap().remove(shardId);
-            if (jda != null)
-            {
-                if (shardingConfig.isUseShutdownNow())
-                    jda.shutdownNow();
-                else
-                    jda.shutdown();
-            }
+            if (shardingConfig.isUseShutdownNow())
+                jda.shutdownNow();
+            else
+                jda.shutdown();
         }
     }
 
@@ -501,6 +495,10 @@ public class DefaultShardManager implements ShardManager
         ExecutorService eventPool = eventPair.executor;
         boolean shutdownEventPool = eventPair.automaticShutdown;
 
+        ExecutorPair<ScheduledExecutorService> audioPair = resolveExecutor(threadingConfig.getAudioPoolProvider(), shardId);
+        ScheduledExecutorService audioPool = audioPair.executor;
+        boolean shutdownAudioPool = audioPair.automaticShutdown;
+
         AuthorizationConfig authConfig = new AuthorizationConfig(token);
         SessionConfig sessionConfig = this.sessionConfig.toSessionConfig(httpClient);
         ThreadingConfig threadingConfig = new ThreadingConfig();
@@ -508,6 +506,7 @@ public class DefaultShardManager implements ShardManager
         threadingConfig.setGatewayPool(gatewayPool, shutdownGatewayPool);
         threadingConfig.setCallbackPool(callbackPool, shutdownCallbackPool);
         threadingConfig.setEventPool(eventPool, shutdownEventPool);
+        threadingConfig.setAudioPool(audioPool, shutdownAudioPool);
         MetaConfig metaConfig = new MetaConfig(this.metaConfig.getMaxBufferSize(), this.metaConfig.getContextMap(shardId), this.metaConfig.getCacheFlags(), this.sessionConfig.getFlags());
         final JDAImpl jda = new JDAImpl(authConfig, sessionConfig, threadingConfig, metaConfig);
         jda.setMemberCachePolicy(shardingConfig.getMemberCachePolicy());

@@ -60,7 +60,6 @@ import net.dv8tion.jda.internal.utils.cache.MemberCacheViewImpl;
 import net.dv8tion.jda.internal.utils.cache.SnowflakeCacheViewImpl;
 import net.dv8tion.jda.internal.utils.cache.SortedSnowflakeCacheViewImpl;
 import net.dv8tion.jda.internal.utils.concurrent.task.GatewayTask;
-import okhttp3.FormBody;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -1052,17 +1051,20 @@ public class GuildImpl implements Guild
         Checks.notNull(roles, "Roles");
 
         Route.CompiledRoute route = Route.Guilds.PRUNE_MEMBERS.compile(getId());
-        FormBody.Builder form = new FormBody.Builder();
-        form.add("days", Integer.toString(days));
+        DataObject body = DataObject.empty();
+        body.put("days", days);
         if (!wait)
-            form.add("compute_prune_count", "false");
-        for (Role role : roles)
+            body.put("compute_prune_count", false);
+        if (roles.length != 0)
         {
-            Checks.notNull(role, "Role");
-            Checks.check(role.getGuild().equals(this), "Role is not from the same guild!");
-            form.add("include_roles", role.getId());
+            for (Role role : roles)
+            {
+                Checks.notNull(role, "Role");
+                Checks.check(role.getGuild().equals(this), "Role is not from the same guild!");
+            }
+            body.put("include_roles", Arrays.stream(roles).map(Role::getId).collect(Collectors.toList()));
         }
-        return new AuditableRestActionImpl<>(getJDA(), route, form.build(), (response, request) -> response.getObject().getInt("pruned", 0));
+        return new AuditableRestActionImpl<>(getJDA(), route, body, (response, request) -> response.getObject().getInt("pruned", 0));
     }
 
     @Nonnull
@@ -1317,26 +1319,46 @@ public class GuildImpl implements Guild
 
     @Nonnull
     @Override
-    public ChannelAction<TextChannel> createTextChannel(@Nonnull String name)
+    public ChannelAction<TextChannel> createTextChannel(@Nonnull String name, Category parent)
     {
-        checkPermission(Permission.MANAGE_CHANNEL);
+        if (parent != null)
+        {
+            Checks.check(parent.getGuild().equals(this), "Category is not from the same guild!");
+            if (!getSelfMember().hasPermission(parent, Permission.MANAGE_CHANNEL))
+                throw new InsufficientPermissionException(parent, Permission.MANAGE_CHANNEL);
+        }
+        else
+        {
+            checkPermission(Permission.MANAGE_CHANNEL);
+        }
+
         Checks.notBlank(name, "Name");
         name = name.trim();
 
         Checks.check(name.length() > 0 && name.length() <= 100, "Provided name must be 1 - 100 characters in length");
-        return new ChannelActionImpl<>(TextChannel.class, name, this, ChannelType.TEXT);
+        return new ChannelActionImpl<>(TextChannel.class, name, this, ChannelType.TEXT).setParent(parent);
     }
 
     @Nonnull
     @Override
-    public ChannelAction<VoiceChannel> createVoiceChannel(@Nonnull String name)
+    public ChannelAction<VoiceChannel> createVoiceChannel(@Nonnull String name, Category parent)
     {
-        checkPermission(Permission.MANAGE_CHANNEL);
+        if (parent != null)
+        {
+            Checks.check(parent.getGuild().equals(this), "Category is not from the same guild!");
+            if (!getSelfMember().hasPermission(parent, Permission.MANAGE_CHANNEL))
+                throw new InsufficientPermissionException(parent, Permission.MANAGE_CHANNEL);
+        }
+        else
+        {
+            checkPermission(Permission.MANAGE_CHANNEL);
+        }
+
         Checks.notBlank(name, "Name");
         name = name.trim();
 
         Checks.check(name.length() > 0 && name.length() <= 100, "Provided name must be 1 - 100 characters in length");
-        return new ChannelActionImpl<>(VoiceChannel.class, name, this, ChannelType.VOICE);
+        return new ChannelActionImpl<>(VoiceChannel.class, name, this, ChannelType.VOICE).setParent(parent);
     }
 
     @Nonnull
